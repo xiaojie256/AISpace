@@ -20,9 +20,14 @@ const nextConfig = {
       );
     }
 
+    // --- 修改开始部分 ---
     config.resolve.fallback = {
+      ...config.resolve.fallback,
       child_process: false,
+      bufferutil: false,        // 忽略缺失的 C++ 模块
+      "utf-8-validate": false,  // 忽略缺失的 C++ 模块
     };
+    // --- 修改结束部分 ---
 
     return config;
   },
