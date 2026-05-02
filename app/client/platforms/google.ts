@@ -51,6 +51,12 @@ export class GeminiProApi implements LLMApi {
     console.log("[Proxy Endpoint] ", baseUrl, path);
 
     let chatPath = [baseUrl, path].join("/");
+    
+    // [修改点]：强制将 /v1/ 替换为 /v1beta/，以兼容所有最新的 preview 模型
+    if (chatPath.includes("/v1/")) {
+      chatPath = chatPath.replace("/v1/", "/v1beta/");
+    }
+
     if (shouldStream) {
       chatPath += chatPath.includes("?") ? "&alt=sse" : "?alt=sse";
     }
