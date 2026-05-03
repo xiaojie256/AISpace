@@ -6,53 +6,40 @@ console.log("[Next] build mode", mode);
 const disableChunk = !!process.env.DISABLE_CHUNK || mode === "export";
 console.log("[Next] build with chunk: ", !disableChunk);
 
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 注意这里参数增加了 { webpack }
-  webpack(config, { webpack }) {
+  webpack(config) {
     config.module.rules.push({
       test: /\.svg$/,
       use: ["@svgr/webpack"],
     });
 
-    if (typeof disableChunk !== "undefined" && disableChunk) {
+    if (typeof disableChunk !== 'undefined' && disableChunk) {
       config.plugins.push(
-        new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
+        // @ts-ignore
+        new config.optimization.LimitChunkCountPlugin({ maxChunks: 1 }),
       );
     }
 
-    // --- 核心修复开始 ---
-    // 1. 强制 Webpack 彻底忽略这两个模块的引入请求
-    config.plugins.push(
-      new webpack.IgnorePlugin({
-        resourceRegExp: /^(bufferutil|utf-8-validate)$/,
-      }),
-    );
-
-    // 2. 将别名指向 false（专门针对 ESM 导入报错）
+    // --- 终极杀招：将缺失的模块强制重定向到我们创建的空文件 ---
     config.resolve.alias = {
       ...config.resolve.alias,
-      bufferutil: false,
-      "utf-8-validate": false,
+      'bufferutil': path.resolve(__dirname, 'mock.js'),
+      'utf-8-validate': path.resolve(__dirname, 'mock.js'),
     };
-
-    // 3. 保留之前的 fallback
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      child_process: false,
-      bufferutil: false,
-      "utf-8-validate": false,
-    };
-    // --- 核心修复结束 ---
+    // -----------------------------------------------------------
 
     return config;
   },
-
+  
+  // 保持对服务端的排除
   serverExternalPackages: ["bufferutil", "utf-8-validate"],
 
-  output: typeof mode !== "undefined" ? mode : undefined,
+  output: typeof mode !== 'undefined' ? mode : undefined,
   images: {
-    unoptimized: typeof mode !== "undefined" && mode === "export",
+    unoptimized: typeof mode !== 'undefined' && mode === "export",
   },
   experimental: {
     forceSwcTransforms: true,
