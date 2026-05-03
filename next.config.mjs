@@ -14,7 +14,7 @@ const nextConfig = {
       use: ["@svgr/webpack"],
     });
 
-    if (disableChunk) {
+    if (typeof disableChunk !== 'undefined' && disableChunk) {
       config.plugins.push(
         new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
       );
@@ -24,21 +24,27 @@ const nextConfig = {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       child_process: false,
-      bufferutil: false,        // 忽略缺失的 C++ 模块
-      "utf-8-validate": false,  // 忽略缺失的 C++ 模块
+      bufferutil: false,        // 忽略 Webpack 层的缺失
+      "utf-8-validate": false,  // 忽略 Webpack 层的缺失
     };
     // --- 修改结束部分 ---
 
     return config;
   },
-  output: mode,
+  
+  // 针对 Next.js 14 服务端组件的补充修复
+  serverExternalPackages: ["bufferutil", "utf-8-validate"],
+
+  output: typeof mode !== 'undefined' ? mode : undefined,
   images: {
-    unoptimized: mode === "export",
+    unoptimized: typeof mode !== 'undefined' && mode === "export",
   },
   experimental: {
     forceSwcTransforms: true,
   },
 };
+
+module.exports = nextConfig; // 或 export default nextConfig，取决于你的文件类型
 
 const CorsHeaders = [
   { key: "Access-Control-Allow-Credentials", value: "true" },
