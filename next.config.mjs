@@ -8,43 +8,58 @@ console.log("[Next] build with chunk: ", !disableChunk);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack(config) {
+  // 注意这里参数增加了 { webpack }
+  webpack(config, { webpack }) {
     config.module.rules.push({
       test: /\.svg$/,
       use: ["@svgr/webpack"],
     });
 
-    if (typeof disableChunk !== 'undefined' && disableChunk) {
+    if (typeof disableChunk !== "undefined" && disableChunk) {
       config.plugins.push(
         new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
       );
     }
 
-    // --- 修改开始部分 ---
+    // --- 核心修复开始 ---
+    // 1. 强制 Webpack 彻底忽略这两个模块的引入请求
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        resourceRegExp: /^(bufferutil|utf-8-validate)$/,
+      }),
+    );
+
+    // 2. 将别名指向 false（专门针对 ESM 导入报错）
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      bufferutil: false,
+      "utf-8-validate": false,
+    };
+
+    // 3. 保留之前的 fallback
     config.resolve.fallback = {
       ...config.resolve.fallback,
       child_process: false,
-      bufferutil: false,        // 忽略 Webpack 层的缺失
-      "utf-8-validate": false,  // 忽略 Webpack 层的缺失
+      bufferutil: false,
+      "utf-8-validate": false,
     };
-    // --- 修改结束部分 ---
+    // --- 核心修复结束 ---
 
     return config;
   },
-  
-  // 针对 Next.js 14 服务端组件的补充修复
+
   serverExternalPackages: ["bufferutil", "utf-8-validate"],
 
-  output: typeof mode !== 'undefined' ? mode : undefined,
+  output: typeof mode !== "undefined" ? mode : undefined,
   images: {
-    unoptimized: typeof mode !== 'undefined' && mode === "export",
+    unoptimized: typeof mode !== "undefined" && mode === "export",
   },
   experimental: {
     forceSwcTransforms: true,
   },
 };
 
-module.exports = nextConfig; // 或 export default nextConfig，取决于你的文件类型
+module.exports = nextConfig;
 
 const CorsHeaders = [
   { key: "Access-Control-Allow-Credentials", value: "true" },
@@ -82,8 +97,10 @@ if (mode !== "export") {
       // },
       {
         // https://{resource_name}.openai.azure.com/openai/deployments/{deploy_name}/chat/completions
-        source: "/api/proxy/azure/:resource_name/deployments/:deploy_name/:path*",
-        destination: "https://:resource_name.openai.azure.com/openai/deployments/:deploy_name/:path*",
+        source:
+          "/api/proxy/azure/:resource_name/deployments/:deploy_name/:path*",
+        destination:
+          "https://:resource_name.openai.azure.com/openai/deployments/:deploy_name/:path*",
       },
       {
         source: "/api/proxy/google/:path*",
@@ -110,7 +127,7 @@ if (mode !== "export") {
         destination: "https://dashscope.aliyuncs.com/api/:path*",
       },
     ];
-    
+
     return {
       beforeFiles: ret,
     };
